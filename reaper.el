@@ -46,6 +46,12 @@
   :group 'reaper
   )
 
+(defcustom reaper-hours-timer-mode t
+  "Defines if Harvest is configured to track time via duration.
+   Non-t value means Harvest is configured to track time via start and end time."
+  :type 'boolean
+  :group 'reaper)
+
 (defconst reaper--list-format
   [("Project" 32 nil)
    ("Task" 20 nil)
@@ -400,24 +406,13 @@ Stops any previously running timers."
          (entry (assoc entry-id reaper-timeentries))
          ;; If the timer is running add the time since the data was fetched.
          (time (reaper--hours-to-time (reaper--hours-accounting-for-running-timer entry)))
-         (new-time (reaper--time-to-hours (read-string "New time: " time)))
-         (harvest-payload (make-hash-table :test 'equal)))
-    (puthash "hours" new-time harvest-payload)
-    (reaper-api "PATCH" (format "time_entries/%s" entry-id) harvest-payload "Updated entry")
-    (reaper-refresh)))
-
-(defun reaper-edit-entry-start-end-time ()
-  "Edit start/end time of entry at point."
-  (interactive)
-  (let* ((entry-id (tabulated-list-get-id))
-         (entry (assoc entry-id reaper-timeentries))
          (start-time (cdr (assoc :started_time entry)))
-         (new-start-time (read-string "New start time: " start-time))
          (end-time (cdr (assoc :ended_time entry)))
-         (new-end-time (read-string "New end time: " end-time))
          (harvest-payload (make-hash-table :test 'equal)))
-    (puthash "started_time" new-start-time harvest-payload)
-    (puthash "ended_time" new-end-time harvest-payload)
+    (if reaper-hours-timer-mode
+        (puthash "hours" (reaper--time-to-hours (read-string "New time: " time)) harvest-payload)
+      (puthash "started_time" (read-string "New start time: " start-time) harvest-payload)
+      (puthash "ended_time" (read-string "New end time: " end-time) harvest-payload))
     (reaper-api "PATCH" (format "time_entries/%s" entry-id) harvest-payload "Updated entry")
     (reaper-refresh)))
 
